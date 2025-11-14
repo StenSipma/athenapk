@@ -32,6 +32,7 @@
 
 // AthenaPK headers
 #include "../main.hpp"
+#include "../units.hpp"
 #include "utils/error_checking.hpp"
 
 namespace kh {
@@ -235,6 +236,109 @@ void ProblemGenerator(Mesh *pmesh, ParameterInput *pin, MeshData<Real> *md) {
           u(IEN, k, j, i) =
               2.5 / gm1 +
               0.5 * (SQR(u(IM1, k, j, i)) + SQR(u(IM2, k, j, i))) / u(IDN, k, j, i);
+        });
+
+  } else if (iprob == 6) {
+    //--- iprob=5. My custom KHI problem, based on Lacoanet, but focused on a CGM
+    // realistic input
+
+    // Init units, no access to package in this function so we use a local units object
+    Units units(pin);
+    Real cm3 = units.cm() * units.cm() * units.cm();
+    Real mh_per_cm3 = units.mh() / cm3;
+
+    // Read input, converting all to code units
+    Real T_h = pin->GetReal("problem/kh", "T_h"); // Kelvin
+    Real T_c = pin->GetReal("problem/kh", "T_c"); // Kelvin
+    Real rho_h = pin->GetReal("problem/kh", "rho_h") * mh_per_cm3;
+    Real v_rel = vflow * units.km_s();
+
+    Real amplitude_scaling = pin->GetReal("problem/kh", "amplitude_scaling");
+
+    // These are all given in code units
+    Real amplitude = v_rel / amplitude_scaling;
+    Real a = pin->GetReal("problem/kh", "a");
+    Real sigma = pin->GetReal("problem/kh", "sigma");
+
+    // Compute rho_c based on pressure equilibrium
+    Real rho_c = rho_h * T_h / T_c;
+    Real mu = 0.62; // mean molecular weight
+    Real pressure = rho_h * T_h * units.k_boltzmann() / (mu * units.mh());
+
+    // Get the physical length (code units?) of the x domain:
+    Real xlen =
+        pin->GetReal("parthenon/mesh", "x1max") - pin->GetReal("parthenon/mesh", "x1min");
+    Real pertubation_wavenumber = 2 * M_PI / xlen;
+
+    // In code units?
+    Real kh_timescale = std::sqrt(rho_c / rho_h) / (pertubation_wavenumber * v_rel);
+
+    Real sim_time = pin->GetReal("parthenon/time", "tlim"); // in code units
+
+    Real e_cold = pressure / gm1 + SQR(v_rel) / (2.0 * rho_c);
+    Real e_hot = pressure / gm1;
+
+    // Let user know things
+    std::stringstream msg;
+    msg << std::setprecision(2);
+    msg << "######################################" << std::endl;
+    msg << "######### Custom KHI problem generator" << std::endl;
+    msg << "## Input parameters" << std::endl;
+    msg << "## Hot phase temperature: " << T_h << " K" << std::endl;
+    msg << "## Hot phase density: " << rho_h / mh_per_cm3 << " mh/cm^3" << std::endl;
+    msg << "## Cold phase temperature: " << T_c << " K" << std::endl;
+    msg << "## Relative velocity: " << v_rel / units.km_s() << " km/s" << std::endl;
+    msg << "## " << std::endl;
+    msg << "#### Derived parameters" << std::endl;
+    msg << "## Cold phase density: " << rho_c / mh_per_cm3
+        << " mh/"
+           "cm^3"
+        << std::endl;
+    msg << "## Pressure (uniform): " << pressure / (units.erg() / cm3) << " erg/cm^3"
+        << std::endl;
+    msg << "## Energy in cold medium: " << e_cold / (units.erg() / cm3) << " erg/cm^3"
+        << std::endl;
+    msg << "## Energy in hot medium: " << e_hot / (units.erg() / cm3) << " erg/cm^3"
+        << std::endl;
+    msg << "######################################" << std::endl << std::endl;
+    msg << "######################################" << std::endl;
+    msg << "## KHI growth time: " << kh_timescale / units.s()
+        << " s = " << kh_timescale / units.myr() << " Myr" << std::endl;
+    msg << "## Simulation time in KHI times: " << sim_time / kh_timescale << std::endl;
+    msg << "######################################" << std::endl << std::endl;
+    msg << "######################################" << std::endl;
+    msg << "## Density, velocity in code units:" << std::endl;
+    msg << "## rho_h = " << rho_h << std::endl;
+    msg << "## rho_c = " << rho_c << std::endl;
+    msg << "## v_rel = " << v_rel << std::endl;
+    msg << "######################################" << std::endl;
+
+    // Actually send the message to cout:
+    std::cout << msg.str();
+
+    pmb->par_for(
+        "KHI: iprob6", 0, num_blocks - 1, kb.s, kb.e, jb.s, jb.e, ib.s, ib.e,
+        KOKKOS_LAMBDA(const int b, const int k, const int j, const int i) {
+          const auto &u = cons(b);
+          const auto &coords = cons.GetCoords(b);
+          auto x = coords.Xc<1>(i);
+          auto y = coords.Xc<2>(j);
+
+          // A transition from rho_c to rho_h along y.
+          u(IDN, k, j, i) =
+              (rho_c + rho_h) / 2. + (rho_h - rho_c) / 2. * std::tanh(y / a);
+
+          u(IM1, k, j, i) = u(IDN, k, j, i) * v_rel * -(std::tanh(y / a) - 1.) / 2.;
+          u(IM2, k, j, i) = u(IDN, k, j, i) * amplitude * std::sin(2.0 * M_PI * x) *
+                            std::exp(-SQR(y) / SQR(sigma));
+          u(IM3, k, j, i) = 0.0; // 2D problem
+
+          // Energy density: = P/(gamma-1) + 0.5 rho v^2
+          // Or: P / (gamma - 1) + mom ^2 / (2 rho)
+          u(IEN, k, j, i) =
+              pressure / gm1 +
+              (SQR(u(IM1, k, j, i)) + SQR(u(IM2, k, j, i)) + SQR(u(IM3, k, j, i))) /
+                  (2.0 * u(IDN, k, j, i));
         });
   } else {
     PARTHENON_FAIL("Unknow iprob for KHI pgen.")
