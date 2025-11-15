@@ -1,27 +1,62 @@
-message(STATUS "Setup for the Habrock cluster at the High Performace Centre at the Rijksuniversiteit Groningen"
+message(STATUS 
+    "Setup for the Habrock cluster at the High Performace Centre at the Rijksuniversiteit Groningen."
+    "Specify 2 variables:"
+    "- HABROCK_NODE: the target node to compile for (gpu1 or interactive-gpu)"
+    "- MACHINE_VARIANT: the build variant (cuda-mpi, cuda, cpu-mpi, cpu)"
 )
-# GPU node 1:
+
+
+set(HABROCK_NODE "interactive-gpu" CACHE STRING "The target Habrock node to compile for")
+## Options: 
+# GPU node 1: (gpu1)
 # - Intel Xeon Platinum 8358 CPUs --> Kokkos_ARCH_ICX
-# - Nvidia A100 GPU --> Kokkos_ARCH_AMPERE80
+# - Nvidia A100 GPU               --> Kokkos_ARCH_AMPERE80
+
+# Interactive GPU nodes: (interactive-gpu)
+# - 24 cores @ 2.4 GHz (two Intel Xeon Gold 6240R CPUs) --> Kokkos_ARCH_SKX (Cascade Lake = same as SkyLake)
+# - 1 Nvidia L40s GPU accelerator card with 48GB RAM    --> Kokkos_ARCH_ADA89 (not sure about the 89)
 
 # common options
-set(Kokkos_ARCH_ICX ON CACHE BOOL "CPU architecture")
-# set(Kokkos_ARCH_NATIVE ON CACHE BOOL "CPU architecture")
-set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Default release build")
 set(MACHINE_VARIANT "cuda-mpi" CACHE STRING "GPU build with MPI")
-# Options for above
+## Options
 # - cuda: build with CUDA only
 # - cuda-mpi: build with CUDA and MPI
 # - cpu-mpi: build with CPU and MPI
 # - cpu: build with CPU only
 
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Default release build")
+
+## Set the CPU architecture flags based on the selected node
+if (${HABROCK_NODE} STREQUAL "gpu1")
+    message(STATUS "Compiling for Habrock GPU node 1 (gpu1)")
+    set(Kokkos_ARCH_ICX ON CACHE BOOL "CPU architecture")
+
+elseif (${HABROCK_NODE} STREQUAL "interactive-gpu")
+    message(STATUS "Compiling for Habrock interactive GPU node (interactive-gpu)")
+    set(Kokkos_ARCH_SKX ON CACHE BOOL "CPU architecture")
+
+else()
+    message(FATAL_ERROR "Unknown HABROCK_NODE: ${HABROCK_NODE}")
+endif()
+
+
 if (${MACHINE_VARIANT} MATCHES "cuda")
-    set(Kokkos_ARCH_AMPERE80 ON CACHE BOOL "GPU architecture") # For my own GPU
+
+    # Set the GPU architecture flags based on the selected node
+    if (${HABROCK_NODE} STREQUAL "gpu1")
+        set(Kokkos_ARCH_AMPERE80 ON CACHE BOOL "GPU architecture")
+    elseif (${HABROCK_NODE} STREQUAL "interactive-gpu")
+        set(Kokkos_ARCH_ADA89 ON CACHE BOOL "GPU architecture")
+    else()
+        message(FATAL_ERROR "Unknown HABROCK_NODE: ${HABROCK_NODE}")
+    endif()
+
     set(Kokkos_ENABLE_CUDA ON CACHE BOOL "Enable Cuda")
     set(CMAKE_CXX_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/external/Kokkos/bin/nvcc_wrapper CACHE STRING "Use nvcc_wrapper")
 else()
     set(CMAKE_CXX_COMPILER g++ CACHE STRING "Use g++")
     set(CMAKE_CXX_FLAGS "-fopenmp-simd -fprefetch-loop-arrays" CACHE STRING "Default opt flags")
+    # Fast math causes issues due to 'proper' math checks with NaN's, so do not use this
   # set(CMAKE_CXX_FLAGS "-fopenmp-simd -ffast-math -fprefetch-loop-arrays" CACHE STRING "Default opt flags")
 endif()
 
@@ -38,9 +73,10 @@ set(PARTHENON_ENABLE_GPU_MPI_CHECKS OFF CACHE BOOL "Disable check by default")
 if (${MACHINE_VARIANT} MATCHES "mpi")
     # set(PARTHENON_DISABLE_HDF5 ON CACHE BOOL "Disable HDF5 (does not work for parallel)")
 
-  # Use a single resource set on a node that includes all cores and GPUs.
-  # GPUs are automatically assigned round robin when run with more than one rank.
-  list(APPEND TEST_MPIOPTS "-n" "1" "-g" "6" "-c" "42" "-r" "1" "-d" "packed" "-b" "packed:7" "--smpiargs='-gpu'")
+    # TODO: check the below options, probably not needed anymore
+    # Use a single resource set on a node that includes all cores and GPUs.
+    # GPUs are automatically assigned round robin when run with more than one rank.
+    # list(APPEND TEST_MPIOPTS "-n" "1" "-g" "6" "-c" "42" "-r" "1" "-d" "packed" "-b" "packed:7" "--smpiargs='-gpu'")
 else()
   set(PARTHENON_DISABLE_MPI ON CACHE BOOL "Disable MPI")
 endif()
