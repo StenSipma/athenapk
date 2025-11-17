@@ -76,6 +76,9 @@ int main(int argc, char *argv[]) {
     pman.app_input->RegisterBoundaryCondition(parthenon::BoundaryFace::inner_x2,
                                               "cloud_inflow_x2", cloud::InflowWindX2);
     Hydro::ProblemCheckRefinementBlock = cloud::ProblemCheckRefinementBlock;
+  } else if (problem == "moving_cloud") {
+    pman.app_input->InitUserMeshData = moving_cloud::InitUserMeshData;
+    pman.app_input->ProblemGenerator = moving_cloud::ProblemGenerator;
   } else if (problem == "blast") {
     pman.app_input->InitUserMeshData = blast::InitUserMeshData;
     pman.app_input->ProblemGenerator = blast::ProblemGenerator;
