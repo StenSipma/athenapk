@@ -29,7 +29,7 @@ code_time_cgs   = 1.460530525100e+16 # 0.46 Gyr
 ## Output
 <parthenon/output0>
 file_type = hdf5
-dt = 0.1
+dt = 0.001
 variables = prim
 id = prim
 # single_precision_output = true
@@ -37,7 +37,7 @@ id = prim
 
 <parthenon/output1>
 file_type = rst
-dt = 0.5
+dt = 0.01
 id = restart
 # hdf5_compression_level = 8
 
@@ -46,9 +46,9 @@ id = restart
 <parthenon/time>
 integrator = vl2
 cfl = 0.2
-tlim = 2.0
-# nlim = 100000
-nlim = 1000 # Testing IC for now
+tlim = 0.1 # 40 Myr
+nlim = 100000
+# nlim = 1000 # Testing IC for now
 ncycle_out_mesh = -500  # print mesh structure every 500 cyles and on refinement
 
 <hydro>
@@ -73,7 +73,7 @@ He_mass_fraction = 0.2485 # Asplund2009
 <parthenon/mesh>
 # refinement = none
 refinement = adaptive
-numlevel = 2 # Global maximum level of refinement
+numlevel = 4 # Global maximum level of refinement
 nghost = 2 # Depends on reconstruction ?
 
 nx1 = 256
@@ -104,7 +104,6 @@ nx3=32
 
 ## AMR definition
 <refinement>
-# type                         = unset
 type                         = maxdensity
-maxdensity_refine_above      = 100        # in code units
-maxdensity_deref_below       = 10         # in code units
+maxdensity_refine_above      = 10        # in code units
+maxdensity_deref_below       = 1.1         # in code units
