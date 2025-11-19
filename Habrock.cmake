@@ -31,18 +31,28 @@ elseif (DEFINED ENV{HABROCK_NODE})
 else()
     message(FATAL_ERROR "HABROCK_NODE is not set. Please set it to one of the supported nodes (gpu1, interactive-gpu).")
 endif()
+
 ######## Options: 
-# GPU node 1: (gpu-A100)
+# GPU node 1: (gpu-A100)  (nodes=6)
 # - Intel Xeon Platinum 8358 CPUs --> Kokkos_ARCH_ICX
 # - Nvidia A100 GPU               --> Kokkos_ARCH_AMPERE80
 
-# GPU node 2: (gpu-V100)
+# GPU node 2: (gpu-V100)  (nodes=19)
 # - Intel Xeon Gold 6150 CPUs (SkyLake) --> Kokkos_ARCH_SKX
 # - Nvidia V100 GPU                     --> Kokkos_ARCH_VOLTA70
 
-# Interactive GPU nodes: (interactive-gpu)
+# Interactive GPU nodes: (interactive-gpu)   (nodes=2)
 # - 24 cores @ 2.4 GHz (two Intel Xeon Gold 6240R CPUs) --> Kokkos_ARCH_SKX (Cascade Lake = same as SkyLake)
 # - 1 Nvidia L40s GPU accelerator card with 48GB RAM    --> Kokkos_ARCH_ADA89
+#
+# NOTE: the single and multi-node Habrock nodes are identical so can be the same compile
+#       target.
+
+# CPU node for multi-node jobs (cpu-multi)   (nodes=48)
+#    128 cores @ 2.45 GHz (two AMD 7763 CPUs) --> Kokkos_ARCH_ZEN3 (Zen 3 (Milan))
+#
+# CPU node for single-node jobs (cpu-single) (nodes=84) 
+#    128 cores @ 2.45 GHz (two AMD 7763 CPUs) --> Kokkos_ARCH_ZEN3 (Zen 3 (Milan))
 ################
 
 # Set the build variant:
@@ -77,6 +87,14 @@ elseif (${HABROCK_NODE} STREQUAL "gpu-V100")
 elseif (${HABROCK_NODE} STREQUAL "interactive-gpu")
     message(STATUS "Compiling for Habrock interactive GPU node (interactive-gpu)")
     set(Kokkos_ARCH_SKX ON CACHE BOOL "CPU architecture")
+
+elseif (${HABROCK_NODE} STREQUAL "cpu-multi")
+    message(STATUS "Compiling for Habrock CPU multi-node (cpu-multi)")
+    set(Kokkos_ARCH_ZEN3 ON CACHE BOOL "CPU architecture")
+
+elseif (${HABROCK_NODE} STREQUAL "cpu-single")
+    message(STATUS "Compiling for Habrock CPU single-node (cpu-single)")
+    set(Kokkos_ARCH_ZEN3 ON CACHE BOOL "CPU architecture")
 
 else()
     message(FATAL_ERROR "Unknown HABROCK_NODE: ${HABROCK_NODE}")

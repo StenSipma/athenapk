@@ -16,8 +16,7 @@ def print_initial_conditions(
     unit_block = """<units>
 code_length_cgs = {length_unit:.12e} # {len_unit_comment:.2}
 code_mass_cgs   = {mass_unit:.12e} # {mass_unit_comment:.2}
-code_time_cgs   = {time_unit:.12e} # {time_unit_comment:.2}
-""".format(
+code_time_cgs   = {time_unit:.12e} # {time_unit_comment:.2}""".format(
         length_unit=length_unit.to("cm").value,
         len_unit_comment=length_unit.to("kpc"),
         mass_unit=mass_unit.to("g").value,
@@ -31,8 +30,7 @@ rho_ambient_mh_cm3 = {rho_ambient} # Density [m_H / cm3], just a check: defined 
 T_ambient_K        = {T_ambient:e} # [K]
 T_cloud_K          = {T_cloud:e} # [K]
 velocity_cloud_km_s = {velocity_cloud} # Velocity in x direction [km / s]
-cloud_radius_factor = {cloud_radius_factor}
-""".format(
+cloud_radius_factor = {cloud_radius_factor}""".format(
         rho_ambient=(rho_ambient / u.mh).to("1 / cm**3").value,
         T_ambient=T_ambient.to("K").value,
         T_cloud=T_cloud.to("K").value,
@@ -53,7 +51,7 @@ cloud_radius_factor = {cloud_radius_factor}
 
 
 def main():
-    # args = parse_args()
+    args = parse_args()
     ## Input parameters:
     rho_ambient = 1e-3 * u.mh / u.cm**3
     temperature_ambient = 2e6 * u.K
@@ -75,6 +73,21 @@ def main():
     energy_unit = (mass_unit * (length_unit / time_unit) ** 2).to("erg")
     pressure_unit = (energy_unit / length_unit**3).to("erg / cm**3")
 
+    ########## Some pixel things
+    pixel_per_unit_length = 16
+    max_refinement_level = 3
+    pc_per_pixel = (length_unit / pixel_per_unit_length).to("pc")
+
+    ## Print everything with a hash:
+    if args.print_resolution:
+        print(f"With {pixel_per_unit_length} pixels per unit length")
+        print(f"And unit length {length_unit.to('kpc'):.2f}, the resolution is:")
+        for ref_level in range(0, max_refinement_level + 1):
+            pc_per_pixel_refined = pc_per_pixel / (2**ref_level)
+            print(
+                f"At refinement level {ref_level}, pixel size = {pc_per_pixel_refined:.2f}"
+            )
+
     print_initial_conditions(
         length_unit,
         mass_unit,
@@ -91,6 +104,11 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--print-resolution",
+        action="store_true",
+        help="Print the spatial resolution at different refinement levels",
+    )
     # TODO: add these later
     # parser.add_argument("rho_ambient", type=float, help="")
     # parser.add_argument("cloud_mass", type=float, help="")
