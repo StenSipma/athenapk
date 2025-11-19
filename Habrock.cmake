@@ -1,14 +1,25 @@
 message(STATUS 
-    "-----------------------------------------------------------------------------------------------\n"
-    "| Setup for the Habrock cluster at the High Performace Centre at the Rijksuniversiteit Groningen.\n"
-    "| Specify 2 variables:\n"
-    "| - HABROCK_NODE: the target node to compile for (gpu-A100, gpu-V100 or interactive-gpu)\n"
-    "| - MACHINE_VARIANT: the build variant (cuda-mpi, cuda, cpu-mpi, cpu)\n"
-    "-----------------------------------------------------------------------------------------------\n"
+"---------------------------------------------------------------------------------------\n"
+"| Running setup for the Habrock cluster at the Rijksuniversiteit Groningen.\n"
+"| Cluster info at: https://wiki.hpc.rug.nl/habrok/start\n"
+"|\n"
+"| Specify 2 variables:\n"
+"| - HABROCK_NODE: the target node to compile for\n"
+"|                 (gpu-A100, gpu-V100 or gpu-interactive, cpu-multi, cpu-single)\n"
+"| - MACHINE_VARIANT: the build variant (cuda-mpi, cuda, cpu-mpi, cpu)\n"
+"|\n"
+"| !!! Make sure you have the proper modules loaded before compiling !!!\n"
+"| For the CPU nodes: \n"
+"| $ module load foss/2023b HDF5/1.14.3-gompi-2023b\n"
+"| For the GPU nodes: \n"
+"| $ module load foss/2023b \\\n"
+"|               HDF5/1.14.3-gompi-2023b \\\n"
+"|               UCX-CUDA/1.15.0-GCCcore-13.2.0-CUDA-12.4.0\n"
+"---------------------------------------------------------------------------------------\n"
 )
 
-#### Modules that should be loaded:
-## Python:
+#### If you want to run tests, also enable a virtual environemnt:
+## Python virtual environment (only if you want to run tests!)
 # $ module load Python/3.11.5-GCCcore-13.2.0
 # $ mkdir -p $HOME/venvs
 # $ python3 -m venv $HOME/venvs/athenapk-env
@@ -16,9 +27,6 @@ message(STATUS
 # $ pip install --upgrade pip
 # $ pip install --upgrade wheel
 # $ pip install numpy matplotlib scipy h5py unyt
-
-# CUDA and HDF5 (with MPI):
-# $ module load foss/2023b HDF5/1.14.3-gompi-2023b UCX-CUDA/1.15.0-GCCcore-13.2.0-CUDA-12.4.0
 
 # Set the build variant:
 # - Specify via the command line: -D MACHINE_VARIANT=<variant>
@@ -29,7 +37,7 @@ if (HABROCK_NODE)
 elseif (DEFINED ENV{HABROCK_NODE})
     set(HABROCK_NODE $ENV{HABROCK_NODE} CACHE STRING "The target Habrock node to compile for")
 else()
-    message(FATAL_ERROR "HABROCK_NODE is not set. Please set it to one of the supported nodes (gpu1, interactive-gpu).")
+    message(FATAL_ERROR "HABROCK_NODE is not set. Please set it to one of the supported nodes.")
 endif()
 
 ######## Options: 
@@ -41,7 +49,7 @@ endif()
 # - Intel Xeon Gold 6150 CPUs (SkyLake) --> Kokkos_ARCH_SKX
 # - Nvidia V100 GPU                     --> Kokkos_ARCH_VOLTA70
 
-# Interactive GPU nodes: (interactive-gpu)   (nodes=2)
+# Interactive GPU nodes: (gpu-interactive)   (nodes=2)
 # - 24 cores @ 2.4 GHz (two Intel Xeon Gold 6240R CPUs) --> Kokkos_ARCH_SKX (Cascade Lake = same as SkyLake)
 # - 1 Nvidia L40s GPU accelerator card with 48GB RAM    --> Kokkos_ARCH_ADA89
 #
@@ -69,8 +77,12 @@ if (MACHINE_VARIANT)
 elseif (DEFINED ENV{MACHINE_VARIANT})
     set(MACHINE_VARIANT $ENV{MACHINE_VARIANT} CACHE STRING "The build variant")
 else()
-    message(WARNING "MACHINE_VARIANT is not set. Defaulting to 'cuda-mpi'")
-    set(MACHINE_VARIANT "cuda-mpi" CACHE STRING "GPU build with MPI")
+    if (${HABROCK_NODE} MATCHES "gpu")
+        set(MACHINE_VARIANT "cuda-mpi" CACHE STRING "GPU build with MPI")
+    else()
+        set(MACHINE_VARIANT "cpu-mpi" CACHE STRING "CPU build with MPI")
+    endif()
+    message(STATUS "MACHINE_VARIANT is not set. Defaulting to mpi-variant of the specific node: '${MACHINE_VARIANT}', for '${HABROCK_NODE}'")
 endif()
 
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Default release build")
@@ -84,8 +96,8 @@ elseif (${HABROCK_NODE} STREQUAL "gpu-V100")
     message(STATUS "Compiling for Habrock GPU (gpu-V100)")
     set(Kokkos_ARCH_SKX ON CACHE BOOL "CPU architecture")
 
-elseif (${HABROCK_NODE} STREQUAL "interactive-gpu")
-    message(STATUS "Compiling for Habrock interactive GPU node (interactive-gpu)")
+elseif (${HABROCK_NODE} STREQUAL "gpu-interactive")
+    message(STATUS "Compiling for Habrock interactive GPU node (gpu-interactive)")
     set(Kokkos_ARCH_SKX ON CACHE BOOL "CPU architecture")
 
 elseif (${HABROCK_NODE} STREQUAL "cpu-multi")
@@ -100,9 +112,9 @@ else()
     message(FATAL_ERROR "Unknown HABROCK_NODE: ${HABROCK_NODE}")
 endif()
 
-
 if (${MACHINE_VARIANT} MATCHES "cuda")
-    if (NOT ${HABROCK_NODE} MATCHES "gpu")
+    # Safety check
+    if (NOT (${HABROCK_NODE} MATCHES "gpu"))
         message(FATAL_ERROR "CUDA build selected but HABROCK_NODE is not a GPU node: ${HABROCK_NODE}")
     endif()
 
@@ -111,17 +123,18 @@ if (${MACHINE_VARIANT} MATCHES "cuda")
         set(Kokkos_ARCH_AMPERE80 ON CACHE BOOL "GPU architecture")
     elseif (${HABROCK_NODE} STREQUAL "gpu-V100")
         set(Kokkos_ARCH_VOLTA70 ON CACHE BOOL "GPU architecture")
-    elseif (${HABROCK_NODE} STREQUAL "interactive-gpu")
+    elseif (${HABROCK_NODE} STREQUAL "gpu-interactive")
         set(Kokkos_ARCH_ADA89 ON CACHE BOOL "GPU architecture")
     else()
-        message(FATAL_ERROR "Unknown HABROCK_NODE: ${HABROCK_NODE}")
+        message(FATAL_ERROR "Unknown GPU HABROCK_NODE: ${HABROCK_NODE}")
     endif()
 
     set(Kokkos_ENABLE_CUDA ON CACHE BOOL "Enable Cuda")
     set(CMAKE_CXX_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/external/Kokkos/bin/nvcc_wrapper CACHE STRING "Use nvcc_wrapper")
-else()
-    if (${HABROCK_NODE} MATCHES "gpu")
-        message(WARNING "CPU build selected but HABROCK_NODE is a GPU node: ${HABROCK_NODE}, are you sure?")
+elseif (${MACHINE_VARIANT} MATCHES "cpu")
+    # Safety check
+    if (NOT (${HABROCK_NODE} MATCHES "cpu"))
+        message(FATAL_ERROR "CPU build selected but HABROCK_NODE is a GPU node: ${HABROCK_NODE}")
     endif()
 
     set(CMAKE_CXX_COMPILER g++ CACHE STRING "Use g++")
@@ -130,6 +143,8 @@ else()
     set(CMAKE_CXX_FLAGS "-fopenmp-simd -fprefetch-loop-arrays" CACHE STRING "Default opt flags")
     # Fast math causes issues due to 'proper' math checks with NaN's, so do not use this
   # set(CMAKE_CXX_FLAGS "-fopenmp-simd -ffast-math -fprefetch-loop-arrays" CACHE STRING "Default opt flags")
+else()
+    message(FATAL_ERROR "Unknown MACHINE_VARIANT: ${MACHINE_VARIANT}.")
 endif()
 
 # Setting launcher options independent of parallel or serial test as the launcher always
@@ -137,10 +152,10 @@ endif()
 # compute nodes.
 
 # TODO: check if the below flags work for my system...
-set(TEST_MPIEXEC mpirun CACHE STRING "Command to launch MPI applications")
-set(TEST_NUMPROC_FLAG "-np" CACHE STRING "Flag to set number of processes")
+# set(TEST_MPIEXEC mpirun CACHE STRING "Command to launch MPI applications")
+# set(TEST_NUMPROC_FLAG "-np" CACHE STRING "Flag to set number of processes")
 # set(NUM_GPU_DEVICES_PER_NODE "6" CACHE STRING "6x V100 per node")
-set(PARTHENON_ENABLE_GPU_MPI_CHECKS OFF CACHE BOOL "Disable check by default")
+# set(PARTHENON_ENABLE_GPU_MPI_CHECKS OFF CACHE BOOL "Disable check by default")
 
 if (${MACHINE_VARIANT} MATCHES "mpi")
     # set(PARTHENON_DISABLE_HDF5 ON CACHE BOOL "Disable HDF5 (does not work for parallel)")
