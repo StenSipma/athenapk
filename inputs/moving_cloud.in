@@ -76,9 +76,9 @@ refinement = adaptive
 numlevel = 4 # Global maximum level of refinement
 nghost = 2 # Depends on reconstruction ?
 
-nx1 = 256
-x1min = -1
-x1max = 15 # Refine later (depending on velocity and time-scale?)
+nx1 = 384
+x1min = -1.5
+x1max = 22.5 # Refine later (depending on velocity and time-scale?)
 ix1_bc = outflow
 ox1_bc = outflow
 
@@ -103,7 +103,14 @@ nx2=32
 nx3=32
 
 ## AMR definition
-<refinement>
-type                         = maxdensity
-maxdensity_refine_above      = 10        # in code units
-maxdensity_deref_below       = 1.1         # in code units
+# <refinement>
+# type                         = maxdensity
+# maxdensity_refine_above      = 10        # in code units
+# maxdensity_deref_below       = 1.1         # in code units
+
+<parthenon/refinement0>
+method       = derivative_order_1 # normalized, first deriv, see https://github.com/parthenon-hpc-lab/parthenon/blob/develop/docs/amr.md#predefined-criteria
+field        = cons
+vector_i     = 0                  # first vector component of cons vector, i.e., density
+refine_tol   = 0.15
+derefine_tol = 0.05

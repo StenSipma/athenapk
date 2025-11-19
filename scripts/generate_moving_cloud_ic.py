@@ -75,8 +75,11 @@ def main():
 
     ########## Some pixel things
     pixel_per_unit_length = 16
-    max_refinement_level = 3
+    max_refinement_level = 4
     pc_per_pixel = (length_unit / pixel_per_unit_length).to("pc")
+
+    t_cc = (rho_cloud / rho_ambient) ** (1 / 2) * radius_cloud / velocity_cloud
+    print(t_cc.to("Myr"))
 
     ## Print everything with a hash:
     if args.print_resolution:
