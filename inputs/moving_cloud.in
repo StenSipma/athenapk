@@ -32,21 +32,21 @@ file_type = hdf5
 dt = 5e-3
 variables = prim
 id = prim
-# single_precision_output = true
-# hdf5_compression_level = 5
+single_precision_output = true  # Should decrease output size by factor 2
+hdf5_compression_level = 5
 
 <parthenon/output1>
 file_type = rst
 dt = 2e-2
 id = restart
-# hdf5_compression_level = 8
+hdf5_compression_level = 8
 
 ##########################################################
 ## Hydro / integrator properties
 <parthenon/time>
 integrator = vl2
 cfl = 0.2
-tlim = 2-1 # ~80 Myr
+tlim = 3e-1 # ~120 Myr
 nlim = 100000
 # nlim = 1000 # Testing IC for now
 ncycle_out_mesh = -500  # print mesh structure every 500 cyles and on refinement
