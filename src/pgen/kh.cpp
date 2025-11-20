@@ -311,6 +311,7 @@ void ProblemGenerator(Mesh *pmesh, ParameterInput *pin, MeshData<Real> *md) {
     msg << "## rho_h = " << rho_h << std::endl;
     msg << "## rho_c = " << rho_c << std::endl;
     msg << "## v_rel = " << v_rel << std::endl;
+    msg << "## pressure = " << pressure << std::endl;
     msg << "######################################" << std::endl;
 
     // Actually send the message to cout:

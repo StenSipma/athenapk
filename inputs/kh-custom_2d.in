@@ -4,7 +4,7 @@
 
 <comment>
 problem = Kelvin-Helmholtz instability
-reference = Lecoanet et al., MNRAS 455, 4274-4288, 2016
+# reference = Lecoanet et al., MNRAS 455, 4274-4288, 2016
 
 <job>
 problem_id = kh
@@ -20,23 +20,22 @@ amplitude_scaling = 2500  # Division factor for perturbation amplitude
 a = 0.05                 # width of shear layer
 sigma = 0.1              # width of initial vy perturbation
 
-<refinement>
-type                     = unset
-#type                     = xyvelocity_gradient 
-threshold_xyvelocity_gradient  = 0.001
 
 <parthenon/mesh>
-refinement = none
-numlevel = 3
+# Try static refinement
+refinement = static
+# Try AMR
+# refinement = adaptive
+numlevel = 3 # max number of refinement allowed
 nghost = 2
 
-nx1 = 128
+nx1 = 32
 x1min = -0.5
 x1max = 0.5
 ix1_bc = periodic
 ox1_bc = periodic
 
-nx2 = 1024
+nx2 = 256
 x2min = -4.0
 x2max = 4.0
 ix2_bc = outflow
@@ -48,9 +47,26 @@ x3max = 0.5
 ix3_bc = periodic
 ox3_bc = periodic
 
+<parthenon/static_refinement0>
+x1min = -0.5
+x1max =  0.5
+x2min = -0.5
+x2max =  0.5
+level = 2 # Refine by factor 4 (2^2) only at the boundary region. 
+# NOTE: that adjacent regions will also be refined, 
+#       to always maintain a max factor 2 difference
+
+# Block used to lay out the AMR strategy
+<refinement>
+# type                     = unset
+type                     = xyvelocity_gradient 
+threshold_xyvelocity_gradient  = 0.001
+
+# TODO: not sure how this impacts things exactly. However, it seems that with
+# static refinement this maintains good balancing?
 <parthenon/meshblock>
-nx1=64
-nx2=512
+nx1=32
+nx2=32
 nx3=1
 
 <parthenon/time>

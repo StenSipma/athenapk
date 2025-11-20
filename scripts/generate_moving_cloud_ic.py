@@ -11,7 +11,7 @@ mu = 0.59
 
 
 def print_initial_conditions(
-    length_unit, mass_unit, time_unit, rho_ambient, T_ambient, T_cloud, v_cloud
+    length_unit, mass_unit, time_unit, rho_ambient, T_ambient, T_cloud, v_cloud, cl_edge_steepness
 ):
     unit_block = """<units>
 code_length_cgs = {length_unit:.12e} # {len_unit_comment:.2}
@@ -30,12 +30,14 @@ rho_ambient_mh_cm3 = {rho_ambient} # Density [m_H / cm3], just a check: defined 
 T_ambient_K        = {T_ambient:e} # [K]
 T_cloud_K          = {T_cloud:e} # [K]
 velocity_cloud_km_s = {velocity_cloud} # Velocity in x direction [km / s]
-cloud_radius_factor = {cloud_radius_factor}""".format(
+cloud_radius_factor = {cloud_radius_factor}
+cloud_edge_steepness = {cl_edge_steepness:d}""".format(
         rho_ambient=(rho_ambient / u.mh).to("1 / cm**3").value,
         T_ambient=T_ambient.to("K").value,
         T_cloud=T_cloud.to("K").value,
         cloud_radius_factor=CLOUD_RADIUS_FACTOR,
         velocity_cloud=v_cloud.to("km / s").value,
+        cl_edge_steepness=cl_edge_steepness,
     )
 
     today = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
@@ -58,6 +60,7 @@ def main():
     temperature_cloud = 1e4 * u.K
     mass_cloud = 1e6 * u.Msun
     velocity_cloud = 70 * u.km / u.s
+    cl_edge_steepness = 10
 
     ## Derive code units
     rho_cloud = rho_ambient * temperature_ambient / temperature_cloud
@@ -99,6 +102,7 @@ def main():
         temperature_ambient,
         temperature_cloud,
         velocity_cloud,
+        cl_edge_steepness,
     )
 
 

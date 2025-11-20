@@ -7,6 +7,7 @@
 // AthenaPK headers
 #include "../main.hpp"
 #include "refinement.hpp"
+#include <cmath>
 
 namespace refinement {
 namespace gradient {
@@ -87,6 +88,67 @@ AmrTag VelocityGradient(MeshBlockData<Real> *rc) {
 
   if (vgmax > threshold) return AmrTag::refine;
   if (vgmax < 0.5 * threshold) return AmrTag::derefine;
+  return AmrTag::same;
+}
+
+// refinement condition: check the maximum value of the second derivative error norm
+// of the density (based on Lohner 1987 and Mignone et al 2012)
+AmrTag Density2ndDerivErrorNorm(MeshBlockData<Real> *rc) {
+  auto pmb = rc->GetBlockPointer();
+  auto w = rc->Get("prim").data;
+
+  // Extract parameters for the refinement
+  const Real threshold =
+      pmb->packages.Get("Hydro")->Param<Real>("refinement/threshold_density_2nd_deriv");
+  const Real epsilon =
+      pmb->packages.Get("Hydro")->Param<Real>("refinement/epsilon_density_2nd_deriv");
+  const Real deref_threshold = pmb->packages.Get("Hydro")->Param<Real>(
+      "refinement/derefine_threshold_density_2nd_deriv");
+
+  IndexRange ib = pmb->cellbounds.GetBoundsI(IndexDomain::interior);
+  IndexRange jb = pmb->cellbounds.GetBoundsJ(IndexDomain::interior);
+  IndexRange kb = pmb->cellbounds.GetBoundsK(IndexDomain::interior);
+
+  Real max_norm_error = 0.0;
+  if (pmb->pmy_mesh->ndim == 3) {
+
+    pmb->par_reduce(
+        "check refine: density 2nd derivative error norm", kb.s - 1, kb.e + 1, jb.s - 1,
+        jb.e + 1, ib.s - 1, ib.e + 1,
+        KOKKOS_LAMBDA(const int k, const int j, const int i, Real &lmax_norm_error) {
+          // Squared second order derivatives in each dimension
+          Real numerator = SQR(0.5 * (w(IDN, k, j, i + 1) - w(IDN, k, j, i - 1))) +
+                           SQR(0.5 * (w(IDN, k, j + 1, i) - w(IDN, k, j - 1, i))) +
+                           SQR(0.5 * (w(IDN, k + 1, j, i) - w(IDN, k - 1, j, i)));
+
+          Real denominator = SQR(std::abs(w(IDN, k, j, i + 1) - w(IDN, k, j, i)) +
+                                 std::abs(w(IDN, k, j, i) - w(IDN, k, j, i - 1)) +
+                                 epsilon * (std::abs(w(IDN, k, j, i + 1)) +
+                                            std::abs(w(IDN, k, j, i)) * 2.0 +
+                                            std::abs(w(IDN, k, j, i - 1))));
+          denominator += SQR(std::abs(w(IDN, k, j + 1, i) - w(IDN, k, j, i)) +
+                             std::abs(w(IDN, k, j, i) - w(IDN, k, j - 1, i)) +
+                             epsilon * (std::abs(w(IDN, k, j + 1, i)) +
+                                        std::abs(w(IDN, k, j, i)) * 2.0 +
+                                        std::abs(w(IDN, k, j - 1, i))));
+
+          denominator += SQR(std::abs(w(IDN, k + 1, j, i) - w(IDN, k, j, i)) +
+                             std::abs(w(IDN, k, j, i) - w(IDN, k - 1, j, i)) +
+                             epsilon * (std::abs(w(IDN, k + 1, j, i)) +
+                                        std::abs(w(IDN, k, j, i)) * 2.0 +
+                                        std::abs(w(IDN, k - 1, j, i))));
+
+          Real snd_deriv_norm_error = std::sqrt(numerator / denominator);
+
+          lmax_norm_error = std::max(lmax_norm_error, snd_deriv_norm_error);
+        },
+        Kokkos::Max<Real>(max_norm_error));
+  } else {
+    return AmrTag::same;
+  }
+
+  if (max_norm_error > threshold) return AmrTag::refine;
+  if (max_norm_error < deref_threshold) return AmrTag::derefine;
   return AmrTag::same;
 }
 

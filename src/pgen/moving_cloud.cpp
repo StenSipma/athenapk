@@ -54,10 +54,10 @@ void InitUserMeshData(Mesh *mesh, ParameterInput *pin) {
   Real T_ambient = pin->GetReal("problem/moving_cloud", "T_ambient_K"); // in Kelvin
   Real T_cloud = pin->GetReal("problem/moving_cloud", "T_cloud_K");     // in Kelvin
 
-  // Factor that related the cloud radius to the code length unit (default 1.1)
-  Real cloud_radius_factor =
-      pin->GetOrAddReal("problem/moving_cloud", "cloud_radius_factor", 1.1);
-  // Quantities we need to set up the problem:
+  // Factor that related the cloud radius to the code length unit
+  Real cloud_radius_factor = pin->GetReal("problem/moving_cloud", "cloud_radius_factor");
+  Real steepness = pin->GetOrAddReal("problem/moving_cloud", "cloud_edge_steepness", 10);
+
   Real velocity_cloud =
       pin->GetReal("problem/moving_cloud", "velocity_cloud_km_s") * units.km_s();
 
@@ -79,6 +79,7 @@ void InitUserMeshData(Mesh *mesh, ParameterInput *pin) {
   pkg->AddParam<Real>("moving_cloud/rho_cloud", rho_cloud);
   pkg->AddParam<Real>("moving_cloud/pressure", pressure);
   pkg->AddParam<Real>("moving_cloud/cloud_radius_factor", cloud_radius_factor);
+  pkg->AddParam<Real>("moving_cloud/cloud_steepness", steepness);
 
   // Now report the setup
   std::stringstream msg;
@@ -98,8 +99,6 @@ void InitUserMeshData(Mesh *mesh, ParameterInput *pin) {
   msg << "## Uniform pressure: " << pressure / (units.erg() / cm3)
       << "erg / cm3 = " << pressure << " code units" << std::endl;
   msg << "## Cloud to ambient density ratio: " << rho_cloud / rho_ambient << std::endl;
-  msg << "######################################" << std::endl;
-  msg << std::endl;
   msg << "######################################" << std::endl;
   msg << "#### Problem units" << std::endl;
   msg << "## Length unit: " << cloud_radius_factor << " x cloud radius" << std::endl;
@@ -136,6 +135,7 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
   const Real pressure = hydro_pkg->Param<Real>("moving_cloud/pressure");
   const Real cloud_radius_factor =
       hydro_pkg->Param<Real>("moving_cloud/cloud_radius_factor");
+  const Real steepness = hydro_pkg->Param<Real>("moving_cloud/cloud_steepness");
 
   // initialize conserved variables
   auto &mbd = pmb->meshblock_data.Get();
@@ -156,15 +156,15 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
         // Radius in units of cloud radius
         const Real rad_cl = rad * cloud_radius_factor;
 
-        Real steepness = 10;
         Real rho = rho_ambient + 0.5 * (rho_cloud - rho_ambient) *
                                      (1.0 - std::tanh(steepness * (rad_cl - 1.0)));
 
-        Real velocity = 0 + 0.5 * (velocity_cloud - 0) *
-                                (1.0 - std::tanh(steepness * (rad_cl - 1.0)));
+        // Same as above, but ambient = 0
+        Real velocity =
+            0.5 * (velocity_cloud) * (1.0 - std::tanh(steepness * (rad_cl - 1.0)));
 
         // Real velocity;
-        // TODO: Factor 1.3 as used in Grønnow, Tepper-García, & Bland-Hawthorn 2018,
+        // Factor 1.3 as used in Grønnow, Tepper-García, & Bland-Hawthorn 2018,
         // but check what is good
         // if (rad_cl <= 1.1) { // Inside the cloud + a little outside
         //   // rho = rho_cloud;

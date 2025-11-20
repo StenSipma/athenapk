@@ -17,7 +17,6 @@ T_cloud_K          = 1.000000e+04 # [K]
 velocity_cloud_km_s = 70.0 # Velocity in x direction [km / s]
 cloud_radius_factor = 1.3
 
-
 <units>
 code_length_cgs = 1.460530525100e+21 # 0.47 kpc
 code_mass_cgs   = 5.214572025388e+36 # 2.6e+03 Msun
@@ -74,7 +73,7 @@ He_mass_fraction = 0.2485 # Asplund2009
 # refinement = none
 refinement = adaptive
 numlevel = 4 # Global maximum level of refinement
-nghost = 2 # Depends on reconstruction ?
+nghost = 2 # Depends on reconstruction
 
 nx1 = 384
 x1min = -1.5
@@ -107,10 +106,16 @@ nx3=32
 # type                         = maxdensity
 # maxdensity_refine_above      = 10        # in code units
 # maxdensity_deref_below       = 1.1         # in code units
+<refinement>
+type                         = density_2nd_deriv_err_norm
+refine_threshold_2nd_deriv   = 0.15
+# Can also specify explicitly:
+# derefine_threshold_2nd_deriv (default = 0.25*refine_threshold)
+# epsilon (default = 0.01)
 
-<parthenon/refinement0>
-method       = derivative_order_1 # normalized, first deriv, see https://github.com/parthenon-hpc-lab/parthenon/blob/develop/docs/amr.md#predefined-criteria
-field        = cons
-vector_i     = 0                  # first vector component of cons vector, i.e., density
-refine_tol   = 0.15
-derefine_tol = 0.05
+# <parthenon/refinement0>
+# method       = derivative_order_1 # normalized, first deriv, see https://github.com/parthenon-hpc-lab/parthenon/blob/develop/docs/amr.md#predefined-criteria
+# field        = cons
+# vector_i     = 0                  # first vector component of cons vector, i.e., density
+# refine_tol   = 0.15
+# derefine_tol = 0.05

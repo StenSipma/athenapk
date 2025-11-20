@@ -792,6 +792,7 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     PARTHENON_REQUIRE(thr > 0.,
                       "Make sure to set refinement/threshold_pressure_gradient >0.");
     pkg->AddParam<Real>("refinement/threshold_pressure_gradient", thr);
+
   } else if (refine_str == "xyvelocity_gradient") {
     pkg->CheckRefinementBlock = refinement::gradient::VelocityGradient;
     const auto thr =
@@ -799,6 +800,26 @@ std::shared_ptr<StateDescriptor> Initialize(ParameterInput *pin) {
     PARTHENON_REQUIRE(thr > 0.,
                       "Make sure to set refinement/threshold_xyvelocity_gradient >0.");
     pkg->AddParam<Real>("refinement/threshold_xyvelocity_gradient", thr);
+
+  } else if (refine_str == "density_2nd_deriv_err_norm") {
+    pkg->CheckRefinementBlock = refinement::gradient::Density2ndDerivErrorNorm;
+    const Real thr = pin->GetOrAddReal("refinement", "refine_threshold_2nd_deriv", 0.0);
+    PARTHENON_REQUIRE(thr > 0.,
+                      "Make sure to set refinement/threshold_pressure_gradient >0.");
+    Real deref_thr = pin->GetOrAddReal("refinement", "derefine_threshold_2nd_deriv", -1);
+    if (deref_thr <= 0.0) {
+      deref_thr = 0.25 * thr;
+    }
+    PARTHENON_REQUIRE(deref_thr > 0.,
+                      "Make sure to set refinement/derefine_threshold_2nd_deriv >0.");
+
+    const Real epsilon = pin->GetOrAddReal("refinement", "epsilon_2nd_deriv", 0.01);
+    PARTHENON_REQUIRE(epsilon > 0., "Make sure to set refinement/epsilon_2nd_deriv >0.");
+
+    pkg->AddParam<Real>("refinement/threshold_density_2nd_deriv", thr);
+    pkg->AddParam<Real>("refinement/derefine_threshold_density_2nd_deriv", deref_thr);
+    pkg->AddParam<Real>("refinement/epsilon_density_2nd_deriv", epsilon);
+
   } else if (refine_str == "maxdensity") {
     pkg->CheckRefinementBlock = refinement::other::MaxDensity;
     const auto deref_below =
