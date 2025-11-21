@@ -117,9 +117,10 @@ AmrTag Density2ndDerivErrorNorm(MeshBlockData<Real> *rc) {
         jb.e + 1, ib.s - 1, ib.e + 1,
         KOKKOS_LAMBDA(const int k, const int j, const int i, Real &lmax_norm_error) {
           // Squared second order derivatives in each dimension
-          Real numerator = SQR(0.5 * (w(IDN, k, j, i + 1) - w(IDN, k, j, i - 1))) +
-                           SQR(0.5 * (w(IDN, k, j + 1, i) - w(IDN, k, j - 1, i))) +
-                           SQR(0.5 * (w(IDN, k + 1, j, i) - w(IDN, k - 1, j, i)));
+          Real numerator =
+              SQR((w(IDN, k, j, i + 1) + w(IDN, k, j, i - 1) - 2 * w(IDN, k, j, i))) +
+              SQR((w(IDN, k, j + 1, i) + w(IDN, k, j - 1, i) - 2 * w(IDN, k, j, i))) +
+              SQR((w(IDN, k + 1, j, i) + w(IDN, k - 1, j, i) - 2 * w(IDN, k, j, i)));
 
           Real denominator = SQR(std::abs(w(IDN, k, j, i + 1) - w(IDN, k, j, i)) +
                                  std::abs(w(IDN, k, j, i) - w(IDN, k, j, i - 1)) +
