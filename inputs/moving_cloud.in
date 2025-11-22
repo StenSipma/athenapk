@@ -109,6 +109,7 @@ nx3=32
 <refinement>
 type                         = density_2nd_deriv_err_norm
 refine_threshold_2nd_deriv   = 0.15
+derefine_threshold_2nd_deriv = 0.01
 # Can also specify explicitly:
 # derefine_threshold_2nd_deriv (default = 0.25*refine_threshold)
 # epsilon (default = 0.01)
