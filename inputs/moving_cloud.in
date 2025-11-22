@@ -16,6 +16,7 @@ T_ambient_K        = 2.000000e+06 # [K]
 T_cloud_K          = 1.000000e+04 # [K]
 velocity_cloud_km_s = 70.0 # Velocity in x direction [km / s]
 cloud_radius_factor = 1.3
+cloud_edge_steepness = 20
 
 <units>
 code_length_cgs = 1.460530525100e+21 # 0.47 kpc
@@ -93,7 +94,6 @@ x3max = 2
 ix3_bc = outflow
 ox3_bc = outflow
 # pack_size = -1      # number of MeshBlock per MeshBlockPack
-# TODO: Investigate parameter above?
 
 # Maybe even do 64x64x64 ?
 <parthenon/meshblock>
