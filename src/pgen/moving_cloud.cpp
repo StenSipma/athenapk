@@ -60,6 +60,7 @@ void InitUserMeshData(Mesh *mesh, ParameterInput *pin) {
 
   Real velocity_cloud =
       pin->GetReal("problem/moving_cloud", "velocity_cloud_km_s") * units.km_s();
+  Real velocity_cutoff = pin->GetOrAddReal("problem/moving_cloud", "velocity_cutoff", -1);
 
   // Real rho_ambient = 1.0; // By definition
   Real rho_ambient = i_rho_ambient; // By definition
@@ -80,6 +81,7 @@ void InitUserMeshData(Mesh *mesh, ParameterInput *pin) {
   pkg->AddParam<Real>("moving_cloud/pressure", pressure);
   pkg->AddParam<Real>("moving_cloud/cloud_radius_factor", cloud_radius_factor);
   pkg->AddParam<Real>("moving_cloud/cloud_steepness", steepness);
+  pkg->AddParam<Real>("moving_cloud/velocity_cutoff", velocity_cutoff);
 
   // Now report the setup
   std::stringstream msg;
@@ -93,6 +95,11 @@ void InitUserMeshData(Mesh *mesh, ParameterInput *pin) {
   msg << "## Cloud temperature:   " << T_cloud << " K" << std::endl;
   msg << "## Cloud velocity:      " << velocity_cloud / units.km_s()
       << " km/s = " << velocity_cloud << " code units" << std::endl;
+  if (velocity_cutoff == -1) {
+      msg << "## Using a smooth transition in velocity" << std::endl;
+  } else {
+      msg << "## Using a sharp transition in velocity at r: " << velocity_cutoff << " x cloud_radius" << std::endl;
+  }
   msg << "#### Derived parameters" << std::endl;
   msg << "## Cloud density: " << rho_cloud / mh_per_cm3 << " mh/cm^3 = " << rho_cloud
       << " code units" << std::endl;
@@ -130,6 +137,7 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
 
   // Retrieve the stored parameters
   const Real velocity_cloud = hydro_pkg->Param<Real>("moving_cloud/velocity_cloud");
+  const Real velocity_cutoff = hydro_pkg->Param<Real>("moving_cloud/velocity_cutoff");
   const Real rho_ambient = hydro_pkg->Param<Real>("moving_cloud/rho_ambient");
   const Real rho_cloud = hydro_pkg->Param<Real>("moving_cloud/rho_cloud");
   const Real pressure = hydro_pkg->Param<Real>("moving_cloud/pressure");
@@ -160,19 +168,13 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
                                      (1.0 - std::tanh(steepness * (rad_cl - 1.0)));
 
         // Same as above, but ambient = 0
-        Real velocity =
-            0.5 * (velocity_cloud) * (1.0 - std::tanh(steepness * (rad_cl - 1.0)));
-
-        // Real velocity;
-        // Factor 1.3 as used in Grønnow, Tepper-García, & Bland-Hawthorn 2018,
-        // but check what is good
-        // if (rad_cl <= 1.1) { // Inside the cloud + a little outside
-        //   // rho = rho_cloud;
-        //   velocity = velocity_cloud;
-        // } else { // Ambient medium
-        //   // rho = rho_ambient;
-        //   velocity = 0.0;
-        // }
+        Real velocity = 0.;
+        if (velocity_cutoff == -1) {
+            velocity =
+                0.5 * (velocity_cloud) * (1.0 - std::tanh(steepness * (rad_cl - 1.0)));
+        } else if (rad_cl < velocity_cutoff) {
+            velocity = velocity_cloud;
+        }
 
         u(IDN, k, j, i) = rho;
         u(IM1, k, j, i) = rho * velocity; // Moving cloud in x-direction
