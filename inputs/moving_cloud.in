@@ -61,6 +61,7 @@ fluid = euler
 eos = adiabatic
 riemann = hllc
 reconstruction = plm
+nscalars = 1  # For tracking the cloud
 gamma = 1.666666666666667 # gamma = C_p/C_v
 # scratch_level = 0 # 0 is actual scratch (tiny); 1 is HBM
 # first_order_flux_correct = true 

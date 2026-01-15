@@ -134,6 +134,8 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
 
   // Real gamma = hydro_pkg->Param<Real>("AdiabaticIndex");
   Real gamma = pin->GetReal("hydro", "gamma");
+  const auto nhydro = hydro_pkg->Param<int>("nhydro");
+  const auto nscalars = hydro_pkg->Param<int>("nscalars");
 
   // Retrieve the stored parameters
   const Real velocity_cloud = hydro_pkg->Param<Real>("moving_cloud/velocity_cloud");
@@ -186,7 +188,14 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
                 (2.0 * u(IDN, k, j, i));
 
         // TODO: if MHD is used, initialize the field here...
-        // TODO: if passive scalars are used, initialize here
+
+        // Init passive scalars
+        // TODO: for loop is not needed if we have only one scalar. Index will then
+        // be n = nhydro
+        for (auto n = nhydro; n < nhydro + nscalars; n++) {
+          const Real scalar = velocity / velocity_cloud;
+          u(n, k, j, i) = scalar * rho;
+        }
       }
     }
   }
