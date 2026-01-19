@@ -38,18 +38,18 @@ void InitUserMeshData(Mesh *mesh, ParameterInput *pin) {
   // Hydro quantities useful for computations
   const auto &pkg = mesh->packages.Get("Hydro");
   const Real mbar_over_kb = pkg->Param<Real>("mbar_over_kb"); // == mu * m_H / k_B
+  const auto nscalars = pkg->Param<int>("nscalars");
 
   // Obtain the units
   Units units = pkg->Param<Units>("units");
   Real cm3 = units.cm() * units.cm() * units.cm();
   Real mh_per_cm3 = units.mh() / cm3;
 
+  // Input variables
+
   // By definition, we will keep rho_ambient == 1 in code units. This needs to be
   // specified in the input file, so there is some 'danger' of inconsistencies.
-  // The rho_ambient variable is therefore more used as a check.
-  //
-  // Input variables
-  Real i_rho_ambient =
+  Real rho_ambient =
       pin->GetReal("problem/moving_cloud", "rho_ambient_mh_cm3") * mh_per_cm3;
   Real T_ambient = pin->GetReal("problem/moving_cloud", "T_ambient_K"); // in Kelvin
   Real T_cloud = pin->GetReal("problem/moving_cloud", "T_cloud_K");     // in Kelvin
@@ -62,17 +62,17 @@ void InitUserMeshData(Mesh *mesh, ParameterInput *pin) {
       pin->GetReal("problem/moving_cloud", "velocity_cloud_km_s") * units.km_s();
   Real velocity_cutoff = pin->GetOrAddReal("problem/moving_cloud", "velocity_cutoff", -1);
 
-  // Real rho_ambient = 1.0; // By definition
-  Real rho_ambient = i_rho_ambient; // By definition
-  Real rho_cloud = rho_ambient * T_ambient / T_cloud;
-  Real pressure = rho_ambient * T_ambient / mbar_over_kb;
-
-  if (std::abs(i_rho_ambient - rho_ambient) > 1e-8) {
-    std::cout << "input: " << i_rho_ambient << ", and rho_ambient: " << rho_ambient
+  // Ambient density should be 1 in code units by definition of our problem.
+  if (std::abs(rho_ambient - 1.0) > 1e-8) {
+    std::cout << "input: " << rho_ambient << ", and rho_ambient: " << rho_ambient
               << std::endl;
     PARTHENON_FAIL("Inconsistent input: rho_ambient_mh_cm3 must be set such that "
                    "rho_ambient == 1.0 in code units.");
   }
+
+  Real rho_cloud = rho_ambient * T_ambient / T_cloud;
+  Real pressure = rho_ambient * T_ambient / mbar_over_kb;
+
 
   // Store parameters in the Hydro package for access in other functions
   pkg->AddParam<Real>("moving_cloud/velocity_cloud", velocity_cloud);
@@ -99,6 +99,9 @@ void InitUserMeshData(Mesh *mesh, ParameterInput *pin) {
       msg << "## Using a smooth transition in velocity" << std::endl;
   } else {
       msg << "## Using a sharp transition in velocity at r: " << velocity_cutoff << " x cloud_radius" << std::endl;
+  }
+  if (nscalars >= 1) {
+      msg << "## Using passive scalars to track the cloud." << std::endl;
   }
   msg << "#### Derived parameters" << std::endl;
   msg << "## Cloud density: " << rho_cloud / mh_per_cm3 << " mh/cm^3 = " << rho_cloud
@@ -193,8 +196,11 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
         // Init passive scalars
         if (nscalars >= 1) {
             auto n = nhydro;
-            const Real scalar = velocity / velocity_cloud; // 0 - 1 depending on the velocity
-            u(n, k, j, i) = scalar * (rho / rho_cloud); // scale this scalar with the density (max 1)
+            // For tracking the material
+            // The primitive scalar is 1 inside the cloud and 0 outside. We scale it
+            // proportionally to the density since this transitions smoothly.
+            const Real primitive_scalar = (velocity / velocity_cloud) * (rho / rho_cloud);
+            u(n, k, j, i) = primitive_scalar * rho ; // Convert primitive to conserved
         }
       }
     }
