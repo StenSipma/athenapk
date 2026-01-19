@@ -88,15 +88,15 @@ x1max = 22.5 # Refine later (depending on velocity and time-scale?)
 ix1_bc = outflow
 ox1_bc = outflow
 
-nx2 = 64
-x2min = -2
-x2max = 2
+nx2 = 128
+x2min = -4
+x2max = 4
 ix2_bc = outflow
 ox2_bc = outflow
 
-nx3 = 64
-x3min = -2
-x3max = 2
+nx3 = 128
+x3min = -4
+x3max = 4
 ix3_bc = outflow
 ox3_bc = outflow
 # pack_size = -1      # number of MeshBlock per MeshBlockPack

@@ -169,12 +169,13 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
         Real rho = rho_ambient + 0.5 * (rho_cloud - rho_ambient) *
                                      (1.0 - std::tanh(steepness * (rad_cl - 1.0)));
 
-        // Same as above, but ambient = 0
         Real velocity = 0.;
         if (velocity_cutoff == -1) {
+            // Smooth tanh transition, from 'velocity_cloud' to 0
             velocity =
                 0.5 * (velocity_cloud) * (1.0 - std::tanh(steepness * (rad_cl - 1.0)));
         } else if (rad_cl < velocity_cutoff) {
+            // A constant value inside velocity_cutoff
             velocity = velocity_cloud;
         }
 
@@ -190,11 +191,10 @@ void ProblemGenerator(MeshBlock *pmb, ParameterInput *pin) {
         // TODO: if MHD is used, initialize the field here...
 
         // Init passive scalars
-        // TODO: for loop is not needed if we have only one scalar. Index will then
-        // be n = nhydro
-        for (auto n = nhydro; n < nhydro + nscalars; n++) {
-          const Real scalar = velocity / velocity_cloud;
-          u(n, k, j, i) = scalar * rho;
+        if (nscalars >= 1) {
+            auto n = nhydro;
+            const Real scalar = velocity / velocity_cloud; // 0 - 1 depending on the velocity
+            u(n, k, j, i) = scalar * (rho / rho_cloud); // scale this scalar with the density (max 1)
         }
       }
     }
